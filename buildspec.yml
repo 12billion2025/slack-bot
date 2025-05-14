@@ -1,0 +1,32 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+    commands:
+      - npm i
+  pre_build:
+    commands:
+    # - cp -r ./src/public ./
+  build:
+    commands:
+      - npm run build
+      # - npx prisma generate
+  post_build:
+    commands:
+      - ls -al
+artifacts:
+  files:
+    - 'package*.json'
+    - 'dist/**/*'
+    - 'public/**/*'
+    - 'views/**/*'
+    - 'src/db/prisma/**/*'
+    - '.ebextensions/**/*'
+    - '.platform/**/*'
+    - '.npmrc'
+    - 'node_modules/**/*'
+cache:
+  paths:
+    # - 'node_modules/**/*'
