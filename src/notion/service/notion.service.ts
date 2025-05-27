@@ -26,4 +26,20 @@ export class NotionService {
 
     return response.results;
   }
+
+  async getPageBlocksText(pageId: string): Promise<string> {
+  const blocks = await this.notion.blocks.children.list({ block_id: pageId });
+
+  const texts = blocks.results
+    .map((block: any) => {
+      if (block.type === 'paragraph') {
+        return block.paragraph.text.map((t: any) => t.plain_text).join('');
+      }
+      // 다른 블록 타입도 필요 시 추가
+      return '';
+    })
+    .filter(text => text.trim() !== '');
+
+    return texts.join('\n');
+  }
 }
