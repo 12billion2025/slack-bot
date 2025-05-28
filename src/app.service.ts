@@ -1,33 +1,56 @@
 import { Injectable } from '@nestjs/common';
 import { ChatOpenAI } from '@langchain/openai';
-import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import {
+  HumanMessage,
+  SystemMessage,
+  BaseMessage,
+} from '@langchain/core/messages';
+import { ConversationsService } from './conversations/conversations.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AppService {
   private chatModel: ChatOpenAI;
 
-  constructor() {
+  constructor(
+    private readonly conversationsService: ConversationsService,
+    private readonly config: ConfigService,
+  ) {
     this.chatModel = new ChatOpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-      modelName: process.env.OPENAI_DEFAULT_MODEL,
-      configuration: {
-        baseURL: process.env.OPENAI_BASE_URL,
-      },
+      apiKey: this.config.get('OPENAI_API_KEY'),
+      modelName: this.config.get('OPENAI_DEFAULT_MODEL'),
+      configuration: { baseURL: this.config.get('OPENAI_BASE_URL') },
       temperature: 0.7,
     });
   }
 
-  async createCompletions(userInput: string): Promise<string> {
-    const response = await this.chatModel.invoke([
-      new SystemMessage(
-        'You are a helpful AI slack chatbot. Always respond in Korean. markdown format',
-      ),
-      new HumanMessage(userInput),
-    ]);
+  async createCompletions(
+    userInput: string,
+    channelId: string,
+    threadId?: string,
+  ): Promise<string> {
+    const messages: BaseMessage[] = [];
 
-    const replyContent = response.content;
-    return typeof replyContent !== 'string'
-      ? JSON.stringify(replyContent)
-      : replyContent;
+    const systemMessage = this.getSystemMessage();
+    const conversations = await this.conversationsService.getMessages(
+      channelId,
+      threadId,
+    );
+
+    messages.push(systemMessage);
+    messages.push(...conversations);
+    messages.push(new HumanMessage(userInput));
+
+    const response = await this.chatModel.invoke(messages);
+
+    return typeof response.content !== 'string'
+      ? JSON.stringify(response.content)
+      : response.content;
+  }
+
+  private getSystemMessage(): SystemMessage {
+    return new SystemMessage(
+      'You are a helpful AI slack chatbot. Always respond in Korean. markdown format.',
+    );
   }
 }
