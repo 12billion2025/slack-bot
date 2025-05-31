@@ -5,13 +5,20 @@ import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { IChatService } from '@types';
 import { StateAnnotation } from '../constants';
 import { DocumentInterface } from '@langchain/core/documents';
+import { Client } from '@notionhq/client';
 
 @Injectable()
 export class NotionService implements IChatService {
+  private readonly notion: Client;
+  private readonly databaseId: string;
+  
   constructor(
     @Inject('NOTION_PINECONE_CLIENT') private readonly pinecone: PineconeStore,
     @Inject('LLM_MODEL') private readonly llm: ChatOpenAI,
-  ) {}
+  ) {
+    this.notion = new Client({ auth: process.env.NOTION_API_KEY });
+    this.databaseId = process.env.NOTION_DATABASE_ID!;
+  }
 
   async invoke(
     state: typeof StateAnnotation.State,
@@ -60,5 +67,42 @@ export class NotionService implements IChatService {
 다음은 참고할 노션 문서들입니다:
 ${context}`,
     );
+  }
+
+  async getRecentlyEditedPages(daysAgo: number = 1): Promise<any[]> {
+    const since = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString();
+
+    const response = await this.notion.databases.query({
+      database_id: this.databaseId,
+      filter: {
+        timestamp: 'last_edited_time',
+        last_edited_time: {
+          on_or_after: since,
+        },
+      },
+      sorts: [
+        {
+          timestamp: 'last_edited_time',
+          direction: 'descending',
+        },
+      ],
+    });
+
+    return response.results;
+  }
+
+  async getPageBlocksText(pageId: string): Promise<string> {
+    const blocks = await this.notion.blocks.children.list({ block_id: pageId });
+
+    const texts = blocks.results
+      .map((block: any) => {
+        if (block.type === 'paragraph') {
+          return block.paragraph.text.map((t: any) => t.plain_text).join('');
+        }
+        return ''; // 필요한 경우 다른 타입도 추가 처리 가능
+      })
+      .filter(text => text.trim() !== '');
+
+    return texts.join('\n');
   }
 }
