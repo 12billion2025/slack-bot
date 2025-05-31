@@ -8,6 +8,7 @@ import { NotionModule } from './notion/notion.module';
 import { ScheduleModule } from '@nestjs/schedule'; // notion을 위한 스케줄러 모듈
 import { GithubModule } from './github/github.module';
 import { ModelModule } from 'model/model.module';
+import { EmbeddingModule } from './embedding/embedding.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ModelModule } from 'model/model.module';
     NotionModule,
     GithubModule,
     ModelModule,
+    EmbeddingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

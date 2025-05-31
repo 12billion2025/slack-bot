@@ -30,6 +30,7 @@
     "@nestjs/platform-express": "^10.0.0",
     "@nestjs/schedule": "^6.0.0",
     "@notionhq/client": "^2.3.0",
+    "@octokit/rest": "^22.0.0",
     "langchain": "^0.3.24",
     "nestjs-slack-bolt": "^1.4.0",
     "reflect-metadata": "^0.2.0",
