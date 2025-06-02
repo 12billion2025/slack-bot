@@ -1,40 +1,19 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PineconeStore } from '@langchain/pinecone';
-import { OpenAIEmbeddings } from '@langchain/openai';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
-import { Pinecone } from '@pinecone-database/pinecone';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { GithubApiService } from '../github/github_api.service';
 
 @Injectable()
 export class GithubEmbeddingService {
   private readonly logger = new Logger(GithubEmbeddingService.name);
-  private readonly pineconeStore: PineconeStore;
 
   constructor(
     private readonly githubApi: GithubApiService,
     private readonly configService: ConfigService,
-  ) {
-    // Pinecone 클라이언트 직접 초기화
-    const pinecone = new Pinecone({
-      apiKey: this.configService.get<string>('PINECONE_API_KEY')!,
-    });
-
-    const pineconeIndex = pinecone.Index(
-      this.configService.get<string>('PINECONE_INDEX_NAME')!,
-    );
-
-    this.pineconeStore = new PineconeStore(
-      new OpenAIEmbeddings({
-        openAIApiKey: this.configService.get<string>('OPENAI_API_KEY'),
-      }),
-      {
-        pineconeIndex,
-        namespace: 'github-docs', // Notion과 구분되는 네임스페이스
-      },
-    );
-  }
+    @Inject('GITHUB_PINECONE_CLIENT') private readonly pinecone: PineconeStore,
+  ) {}
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async updateEmbedding() {
@@ -135,24 +114,14 @@ export class GithubEmbeddingService {
     });
 
     const docs = await splitter.createDocuments([content], [metadata]);
-    await this.pineconeStore.addDocuments(docs);
+    await this.pinecone.addDocuments(docs);
 
     this.logger.log(`벡터 저장 완료: ${metadata.type} ${metadata.id}`);
   }
 
   private async deleteExistingEmbeddings(id: string) {
     try {
-      const pinecone = new Pinecone({
-        apiKey: this.configService.get<string>('PINECONE_API_KEY')!,
-      });
-
-      const index = pinecone.Index(
-        this.configService.get<string>('PINECONE_INDEX_NAME')!,
-      );
-
-      await index.namespace('github-docs').deleteMany({
-        filter: { id: { $eq: id } },
-      });
+      await this.pinecone.delete({ filter: { id: { $eq: id } } });
     } catch (error) {
       this.logger.warn(`기존 임베딩 삭제 중 오류 (id: ${id}):`, error);
     }
