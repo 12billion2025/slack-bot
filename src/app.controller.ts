@@ -10,11 +10,12 @@ export class AppController {
   @Event('app_mention')
   async event({ event, say }: SlackEventMiddlewareArgs<'app_mention'>) {
     try {
-      const reply = await this.appService.createCompletions(event.text);
-      await say({
-        text: reply,
-        thread_ts: event.ts,
-      });
+      const reply = await this.appService.createCompletions(
+        event.text,
+        event.channel,
+        event.thread_ts || event.ts,
+      );
+      await say({ text: reply, thread_ts: event.ts });
     } catch (error) {
       await say({
         text: '오류가 발생했습니다. 다시 시도해주세요.',
