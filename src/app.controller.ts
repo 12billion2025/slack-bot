@@ -1,8 +1,9 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, Res } from '@nestjs/common';
 import { AppService } from './app.service';
 import { WebClient } from '@slack/web-api';
 import { ConfigService } from '@nestjs/config';
 import { SlackEventSubscription } from '@types';
+import { Response } from 'express';
 
 @Controller()
 export class AppController {
@@ -18,7 +19,10 @@ export class AppController {
   @Post()
   async subscribeSlackEvent(
     @Body() { event, challenge }: SlackEventSubscription,
+    @Res() res: Response,
   ) {
+    res.status(200).send(challenge);
+
     try {
       const reply = await this.appService.createCompletions(
         event.text,
@@ -38,8 +42,6 @@ export class AppController {
         text: '오류가 발생했습니다. 다시 시도해주세요.',
       });
       console.error(error);
-    } finally {
-      return challenge;
     }
   }
 }
