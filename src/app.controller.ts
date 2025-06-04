@@ -1,20 +1,15 @@
-import { Body, Controller, Post, Res } from '@nestjs/common';
+import { Body, Controller, Inject, Post, Res } from '@nestjs/common';
 import { AppService } from './app.service';
-import { WebClient } from '@slack/web-api';
-import { ConfigService } from '@nestjs/config';
 import { SlackEventSubscription } from '@types';
 import { Response } from 'express';
+import { WebClient } from '@slack/web-api';
 
 @Controller()
 export class AppController {
-  private slackClient: WebClient;
-
   constructor(
     private readonly appService: AppService,
-    private readonly config: ConfigService,
-  ) {
-    this.slackClient = new WebClient(this.config.get('SLACK_BOT_TOKEN'));
-  }
+    @Inject('SLACK_CLIENT') private readonly slackClient: WebClient,
+  ) {}
 
   @Post()
   async subscribeSlackEvent(

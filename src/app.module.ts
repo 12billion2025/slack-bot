@@ -9,6 +9,7 @@ import { GithubModule } from './github/github.module';
 import { ModelModule } from 'model/model.module';
 import { EmbeddingModule } from './embedding/embedding.module';
 import { PrismaModule } from 'prisma/prisma.module';
+import { SlackModule } from 'slack/slack.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { PrismaModule } from 'prisma/prisma.module';
     GithubModule,
     ModelModule,
     EmbeddingModule,
+    SlackModule,
   ],
   controllers: [AppController],
   providers: [AppService],
