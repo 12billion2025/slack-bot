@@ -8,11 +8,13 @@ import { ScheduleModule } from '@nestjs/schedule'; // notion을 위한 스케줄
 import { GithubModule } from './github/github.module';
 import { ModelModule } from 'model/model.module';
 import { EmbeddingModule } from './embedding/embedding.module';
+import { PrismaModule } from 'prisma/prisma.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(), // notion을 위한 스케줄러 모듈
+    PrismaModule,
     ConversationsModule,
     NotionModule,
     GithubModule,
