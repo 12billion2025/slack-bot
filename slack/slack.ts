@@ -12,7 +12,7 @@ export const SlackProvider: FactoryProvider<WebClient> = {
     prisma: PrismaService,
     ctxPayload: { tenantId: string },
   ) => {
-    const tenant = await prisma.tenants.findUnique({
+    const tenant = await prisma.tenants.findFirst({
       where: { tenantId: ctxPayload.tenantId },
     });
     const slackClient = new WebClient(tenant.slackBotToken);

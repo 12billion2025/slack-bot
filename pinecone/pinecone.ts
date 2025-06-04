@@ -17,7 +17,7 @@ export const NotionPineconeProvider: FactoryProvider<PineconeStore> = {
     config: ConfigService,
     embeddings: OpenAIEmbeddings,
   ) => {
-    const tenant = await prisma.tenants.findUnique({
+    const tenant = await prisma.tenants.findFirst({
       where: { tenantId: ctxPayload.tenantId },
     });
     const pinecone = new Pinecone({ apiKey: config.get('PINECONE_API_KEY') });
@@ -39,7 +39,7 @@ export const GithubPineconeProvider: FactoryProvider<PineconeStore> = {
     config: ConfigService,
     embeddings: OpenAIEmbeddings,
   ) => {
-    const tenant = await prisma.tenants.findUnique({
+    const tenant = await prisma.tenants.findFirst({
       where: { tenantId: ctxPayload.tenantId },
     });
     const pinecone = new Pinecone({ apiKey: config.get('PINECONE_API_KEY') });

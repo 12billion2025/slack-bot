@@ -72,7 +72,7 @@ model Tenants {
   notionPineconeIndexName String?
   githubToken             String?
   githubPineconeIndexName String?
-  tenantId                String?  @unique
+  tenantId                String?
   slackBotToken           String?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
