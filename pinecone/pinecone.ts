@@ -21,9 +21,10 @@ export const NotionPineconeProvider: FactoryProvider<PineconeStore> = {
       where: { tenantId: ctxPayload.tenantId },
     });
     const pinecone = new Pinecone({ apiKey: config.get('PINECONE_API_KEY') });
-    const index = pinecone.Index(tenant.notionPineconeIndexName); // 노션 전용 인덱스
-    return await PineconeStore.fromExistingIndex(embeddings, {
+    const index = pinecone.Index(config.get('PINECONE_NOTION_INDEX_NAME'));
+    return PineconeStore.fromExistingIndex(embeddings, {
       pineconeIndex: index,
+      namespace: tenant.tenantId,
     });
   },
 };
@@ -43,9 +44,10 @@ export const GithubPineconeProvider: FactoryProvider<PineconeStore> = {
       where: { tenantId: ctxPayload.tenantId },
     });
     const pinecone = new Pinecone({ apiKey: config.get('PINECONE_API_KEY') });
-    const index = pinecone.Index(tenant.githubPineconeIndexName); // 깃허브 전용 인덱스
-    return await PineconeStore.fromExistingIndex(embeddings, {
+    const index = pinecone.Index(config.get('PINECONE_GITHUB_INDEX_NAME'));
+    return PineconeStore.fromExistingIndex(embeddings, {
       pineconeIndex: index,
+      namespace: tenant.tenantId,
     });
   },
 };
