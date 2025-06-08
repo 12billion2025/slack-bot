@@ -7,21 +7,16 @@ import {
 } from '@langchain/core/messages';
 import { WebClient } from '@slack/web-api';
 import { MessageElement } from '@slack/web-api/dist/types/response/ConversationsRepliesResponse';
-import { ConfigService } from '@nestjs/config';
 import { ChatOpenAI } from '@langchain/openai';
 import { IChatService } from '@types';
 import { StateAnnotation } from '../constants';
 
 @Injectable()
 export class ConversationsService implements IChatService {
-  private slackClient: WebClient;
-
   constructor(
-    private readonly config: ConfigService,
     @Inject('LLM_MODEL') private readonly model: ChatOpenAI,
-  ) {
-    this.slackClient = new WebClient(this.config.get('SLACK_BOT_TOKEN'));
-  }
+    @Inject('SLACK_CLIENT') private readonly slackClient: WebClient,
+  ) {}
 
   public async invoke(
     state: typeof StateAnnotation.State,
