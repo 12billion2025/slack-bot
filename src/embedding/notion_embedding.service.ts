@@ -4,7 +4,7 @@ import { PineconeStore } from '@langchain/pinecone';
 import { OpenAIEmbeddings } from '@langchain/openai';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import { Pinecone } from '@pinecone-database/pinecone';
-import { NotionApiService } from '../notion/notion_api.service';
+import { NotionApiService } from './notion_api.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()

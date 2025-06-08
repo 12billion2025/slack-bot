@@ -5,7 +5,7 @@ import { OpenAIEmbeddings } from '@langchain/openai';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import { Pinecone } from '@pinecone-database/pinecone';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { GithubApiService } from '../github/github_api.service';
+import { GithubApiService } from './github_api.service';
 
 @Injectable()
 export class GithubEmbeddingService {
