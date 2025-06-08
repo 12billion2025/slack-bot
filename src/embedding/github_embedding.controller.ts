@@ -50,6 +50,7 @@ export class GithubEmbeddingController {
         tenant,
         (octokit, owner, repo) =>
           this.githubEmbeddingService.getRepositoryFiles(octokit, owner, repo),
+        true,
       );
     } catch (error) {
       this.logger.error(
