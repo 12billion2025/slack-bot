@@ -37,7 +37,7 @@ export class GithubEmbeddingService {
   ) {
     this.logger.log(`테넌트 ${tenant.id}의 GitHub 임베딩 업데이트 시작`);
 
-    const pineconeStore = this.pineconeIndex.namespace(tenant.id);
+    const pineconeStore = this.pineconeIndex.namespace(tenant.tenantId);
     const octokit = new Octokit({ auth: tenant.githubAccessToken });
 
     try {
