@@ -5,11 +5,7 @@ import { NotionApiService } from './notion_api.service';
 import { GithubEmbeddingService } from './github_embedding.service';
 
 @Module({
-  providers: [
-    GithubEmbeddingController,
-    GithubEmbeddingService,
-    NotionEmbeddingService,
-    NotionApiService,
-  ],
+  controllers: [GithubEmbeddingController],
+  providers: [GithubEmbeddingService, NotionEmbeddingService, NotionApiService],
 })
 export class EmbeddingModule {}

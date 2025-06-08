@@ -5,7 +5,7 @@ import { PrismaService } from 'prisma/prisma.service';
 import { GithubEmbeddingService } from './github_embedding.service';
 import { ApiKeyGuard } from '../guards/api-key.guard';
 
-@Controller('embedding')
+@Controller('github-embedding')
 export class GithubEmbeddingController {
   private readonly logger = new Logger(GithubEmbeddingController.name);
 
@@ -40,7 +40,7 @@ export class GithubEmbeddingController {
     console.log('done');
   }
 
-  @Post('init-embedding')
+  @Post('init')
   @UseGuards(ApiKeyGuard)
   async initEmbedding(@Body() body: { tenantId: string }) {
     const tenant = await this.prisma.tenants.findFirstOrThrow({
