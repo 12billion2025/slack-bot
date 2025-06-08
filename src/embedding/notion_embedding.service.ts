@@ -123,9 +123,6 @@ export class NotionEmbeddingService {
     });
 
     try {
-      // 네임스페이스 전체 삭제 (초기화)
-      await pineconeStore.deleteAll();
-
       const pages = await this.getAllPages(notion, tenant.notionDatabaseId);
       this.logger.log(`초기화할 페이지 수: ${pages.length}`);
 
