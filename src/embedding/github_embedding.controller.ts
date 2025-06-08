@@ -43,7 +43,7 @@ export class GithubEmbeddingController {
   @Post('init-embedding')
   @UseGuards(ApiKeyGuard)
   async initEmbedding(@Body() body: { tenantId: string }) {
-    const tenant = await this.prisma.tenants.findFirst({
+    const tenant = await this.prisma.tenants.findFirstOrThrow({
       where: { id: body.tenantId },
     });
 
