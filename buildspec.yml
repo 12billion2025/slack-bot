@@ -11,8 +11,8 @@ phases:
     # - cp -r ./src/public ./
   build:
     commands:
-      - npm run build
       - npx prisma generate
+      - npm run build
   post_build:
     commands:
       - ls -al
