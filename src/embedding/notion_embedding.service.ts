@@ -199,10 +199,10 @@ export class NotionEmbeddingService {
   private async getRecentlyEditedPages(
     notion: Client,
     databaseId: string,
-    daysAgo: number = 1,
+    hoursAgo: number = 1,
   ): Promise<any[]> {
     const since = new Date(
-      Date.now() - daysAgo * 24 * 60 * 60 * 1000,
+      Date.now() - hoursAgo * 60 * 60 * 1000,
     ).toISOString();
 
     const response = await notion.databases.query({

@@ -14,7 +14,7 @@ export class GithubEmbeddingController {
     private readonly githubEmbeddingService: GithubEmbeddingService,
   ) {}
 
-  @Cron(CronExpression.EVERY_30_MINUTES)
+  @Cron(CronExpression.EVERY_HOUR)
   async updateEmbedding() {
     const tenants = await this.prisma.tenants.findMany();
 

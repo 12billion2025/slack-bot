@@ -221,16 +221,14 @@ export class GithubEmbeddingService {
     repo: string,
   ) {
     const changedFiles = [];
-    const thirtyMinutesAgo = new Date(
-      Date.now() - 30 * 60 * 1000 * 24,
-    ).toISOString();
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000 * 24).toISOString();
 
     try {
       // 최근 30분 이후의 커밋들 가져오기
       const commits = await octokit.repos.listCommits({
         owner,
         repo,
-        since: thirtyMinutesAgo,
+        since: oneHourAgo,
         per_page: 100,
       });
 
