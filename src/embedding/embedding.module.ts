@@ -1,14 +1,14 @@
 import { Module } from '@nestjs/common';
 import { NotionEmbeddingService } from './notion_embedding.service';
-import { GithubEmbeddingService } from './github_embedding.service';
-import { GithubApiService } from './github_api.service';
+import { GithubEmbeddingController } from './github_embedding.controller';
 import { NotionApiService } from './notion_api.service';
+import { GithubEmbeddingService } from './github_embedding.service';
 
 @Module({
   providers: [
+    GithubEmbeddingController,
     GithubEmbeddingService,
     NotionEmbeddingService,
-    GithubApiService,
     NotionApiService,
   ],
 })

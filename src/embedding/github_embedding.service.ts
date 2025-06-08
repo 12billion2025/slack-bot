@@ -1,160 +1,365 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PineconeStore } from '@langchain/pinecone';
+import { Tenants } from '@prisma/client';
+import { Pinecone } from '@pinecone-database/pinecone';
+import { Octokit } from '@octokit/rest';
 import { OpenAIEmbeddings } from '@langchain/openai';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
-import { Pinecone } from '@pinecone-database/pinecone';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { GithubApiService } from './github_api.service';
+import { excludedDirs, supportedExtensions } from 'src/constants';
 
 @Injectable()
 export class GithubEmbeddingService {
   private readonly logger = new Logger(GithubEmbeddingService.name);
-  private readonly pineconeStore: PineconeStore;
+  private readonly pinecone = new Pinecone({
+    apiKey: this.configService.get<string>('PINECONE_API_KEY')!,
+  });
+  private readonly pineconeIndex = this.pinecone.Index(
+    this.configService.get<string>('PINECONE_GITHUB_INDEX_NAME')!,
+  );
+  private readonly embeddings = new OpenAIEmbeddings({
+    openAIApiKey: this.configService.get('OPENAI_API_KEY'),
+    modelName: this.configService.get('OPENAI_EMBEDDING_MODEL'),
+  });
+  private readonly textSplitter = new RecursiveCharacterTextSplitter({
+    chunkSize: 1000,
+    chunkOverlap: 200,
+  });
 
-  constructor(
-    private readonly githubApi: GithubApiService,
-    private readonly configService: ConfigService,
+  constructor(private readonly configService: ConfigService) {}
+
+  public async updateGitubPinecone(
+    tenant: Tenants,
+    getFileFunction: (
+      octokit: Octokit,
+      owner: string,
+      repo: string,
+    ) => Promise<any>,
   ) {
-    // Pinecone 클라이언트 직접 초기화
-    const pinecone = new Pinecone({
-      apiKey: this.configService.get<string>('PINECONE_API_KEY')!,
-    });
+    this.logger.log(`테넌트 ${tenant.id}의 GitHub 임베딩 업데이트 시작`);
 
-    const pineconeIndex = pinecone.Index(
-      this.configService.get<string>('PINECONE_INDEX_NAME')!,
-    );
+    const pineconeStore = this.pineconeIndex.namespace(tenant.id);
+    const octokit = new Octokit({ auth: tenant.githubAccessToken });
 
-    this.pineconeStore = new PineconeStore(
-      new OpenAIEmbeddings({
-        openAIApiKey: this.configService.get<string>('OPENAI_API_KEY'),
-      }),
-      {
-        pineconeIndex,
-        namespace: 'github-docs', // Notion과 구분되는 네임스페이스
-      },
-    );
-  }
-
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
-  async updateEmbedding() {
     try {
-      this.logger.log('GitHub 임베딩 업데이트 시작');
+      const repositories = await this.getAllRepositories(octokit);
 
-      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const owner = this.configService.get<string>('GITHUB_REPO_OWNER')!;
-      const repo = this.configService.get<string>('GITHUB_REPO_NAME')!;
+      this.logger.log(`${repositories.length}개의 레포지토리 발견`);
 
-      const [issues, prs, commits] = await Promise.all([
-        this.githubApi.getRecentIssues(owner, repo, since),
-        this.githubApi.getRecentPullRequests(owner, repo, since),
-        this.githubApi.getRecentCommits(owner, repo, since),
-      ]);
+      let totalProcessedFiles = 0;
+      let totalChunks = 0;
 
-      // Issues 처리
-      for (const issue of issues) {
-        if (!issue.body?.trim()) continue;
-
+      for (const repo of repositories) {
         try {
-          await this.deleteExistingEmbeddings(`issue-${issue.number}`);
-          await this.processDocument(
-            `# Issue #${issue.number}: ${issue.title}\n\n${issue.body}`,
-            {
-              type: 'issue',
-              id: `issue-${issue.number}`,
-              number: issue.number,
-              title: issue.title,
-              url: issue.html_url,
-              updatedAt: issue.updated_at,
-              source: 'github',
-            },
+          this.logger.log(`레포지토리 처리 중: ${repo.full_name}`);
+
+          const changedFiles = await getFileFunction(
+            octokit,
+            repo.owner.login,
+            repo.name,
           );
-        } catch (error) {
-          this.logger.error(`Issue #${issue.number} 처리 중 오류:`, error);
-        }
-      }
 
-      // Pull Requests 처리
-      for (const pr of prs) {
-        if (!pr.body?.trim()) continue;
+          if (changedFiles.length === 0) {
+            this.logger.log(
+              `${repo.full_name}: 최근 30분 동안 변경된 파일 없음`,
+            );
+            continue;
+          }
 
-        try {
-          await this.deleteExistingEmbeddings(`pr-${pr.number}`);
-          await this.processDocument(
-            `# PR #${pr.number}: ${pr.title}\n\n${pr.body}`,
-            {
-              type: 'pull_request',
-              id: `pr-${pr.number}`,
-              number: pr.number,
-              title: pr.title,
-              url: pr.html_url,
-              updatedAt: pr.updated_at,
-              source: 'github',
-            },
+          this.logger.log(
+            `${repo.full_name}: ${changedFiles.length}개의 최근 변경된 파일 발견`,
           );
-        } catch (error) {
-          this.logger.error(`PR #${pr.number} 처리 중 오류:`, error);
-        }
-      }
 
-      // Commits 처리
-      for (const commit of commits) {
-        if (!commit.commit.message?.trim()) continue;
+          for (const file of changedFiles) {
+            const filename = file.filename || file.name;
+            try {
+              // 지원하는 파일 확장자인지 확인
+              if (!this.isSupportedFile(filename)) {
+                continue;
+              }
 
-        try {
-          await this.deleteExistingEmbeddings(`commit-${commit.sha}`);
-          await this.processDocument(
-            `# Commit ${commit.sha.substring(0, 7)}\n\n${commit.commit.message}`,
-            {
-              type: 'commit',
-              id: `commit-${commit.sha}`,
-              sha: commit.sha,
-              message: commit.commit.message,
-              url: commit.html_url,
-              date: commit.commit.author?.date,
-              source: 'github',
-            },
-          );
+              // 파일이 삭제된 경우 임베딩만 삭제하고 건너뛰기
+              if (file.status === 'removed') {
+                await this.deleteExistingEmbeddings(
+                  pineconeStore,
+                  repo.full_name,
+                  filename,
+                );
+                this.logger.log(`삭제된 파일의 임베딩 제거 완료: ${filename}`);
+                continue;
+              }
+
+              // 파일 내용 가져오기
+              const content = await this.getFileContent(
+                octokit,
+                repo.owner.login,
+                repo.name,
+                filename,
+              );
+              if (!content) continue;
+              console.log(content);
+
+              // 기존 임베딩 삭제 (파일이 수정된 경우)
+              await this.deleteExistingEmbeddings(
+                pineconeStore,
+                repo.full_name,
+                filename,
+              );
+
+              // 텍스트를 청크로 분할
+              const chunks = await this.textSplitter.splitText(content);
+
+              // 각 청크에 대해 임베딩 생성 및 저장
+              const vectors = [];
+
+              for (let i = 0; i < chunks.length; i++) {
+                const chunk = chunks[i];
+                const chunkId = this.createChunkId(repo.full_name, filename, i);
+
+                // 임베딩 생성
+                const embedding = await this.embeddings.embedQuery(chunk);
+
+                // 메타데이터 생성
+                const metadata = {
+                  repository: repo.full_name,
+                  filePath: filename,
+                  chunkIndex: i,
+                  totalChunks: chunks.length,
+                  status: file.status, // added, modified, removed
+                  additions: file.additions || 0,
+                  deletions: file.deletions || 0,
+                  changes: file.changes || 0,
+                  repoUrl: repo.html_url,
+                  language: repo.language || 'unknown',
+                  updatedAt: new Date().toISOString(),
+                  pageContent: chunk,
+                  timestamp: new Date().toISOString(),
+                };
+
+                vectors.push({
+                  id: chunkId,
+                  values: embedding,
+                  metadata,
+                });
+              }
+
+              // Pinecone에 벡터 업로드
+              if (vectors.length > 0) {
+                await pineconeStore.upsert(vectors);
+                totalChunks += vectors.length;
+                totalProcessedFiles++;
+
+                this.logger.log(
+                  `파일 처리 완료: ${filename} (${file.status}) (${vectors.length}개 청크)`,
+                );
+              }
+            } catch (error) {
+              this.logger.warn(`파일 처리 실패 ${filename}:`, error);
+            }
+          }
         } catch (error) {
-          this.logger.error(`Commit ${commit.sha} 처리 중 오류:`, error);
+          this.logger.warn(`레포지토리 처리 실패 ${repo.full_name}:`, error);
         }
       }
 
       this.logger.log(
-        `GitHub 임베딩 업데이트 완료 - Issues: ${issues.length}, PRs: ${prs.length}, Commits: ${commits.length}`,
+        `GitHub 임베딩 업데이트 완료: ${totalProcessedFiles}개 파일, ${totalChunks}개 청크`,
       );
     } catch (error) {
-      this.logger.error('GitHub 임베딩 업데이트 중 오류:', error);
+      this.logger.error('GitHub 임베딩 업데이트 중 오류 발생:', error);
+      console.log(error);
+      throw error;
     }
   }
 
-  private async processDocument(content: string, metadata: any) {
-    const splitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 500,
-      chunkOverlap: 50,
-    });
+  public async getAllRepositories(octokit: Octokit) {
+    const repositories = [];
+    let page = 1;
+    const perPage = 10;
 
-    const docs = await splitter.createDocuments([content], [metadata]);
-    await this.pineconeStore.addDocuments(docs);
+    try {
+      // GitHub App의 경우 installation repositories 사용
+      while (true) {
+        const response = await octokit.apps.listReposAccessibleToInstallation({
+          page,
+          per_page: perPage,
+        });
 
-    this.logger.log(`벡터 저장 완료: ${metadata.type} ${metadata.id}`);
+        repositories.push(...response.data.repositories);
+
+        if (response.data.repositories.length < perPage) {
+          break;
+        }
+        page++;
+      }
+    } catch (error) {
+      this.logger.warn(
+        'Installation repositories 접근 실패, 대체 방법 시도:',
+        error,
+      );
+    }
+
+    return repositories;
   }
 
-  private async deleteExistingEmbeddings(id: string) {
+  public async getRepositoryFiles(
+    octokit: Octokit,
+    owner: string,
+    repo: string,
+    path = '',
+  ) {
+    const files = [];
+
     try {
-      const pinecone = new Pinecone({
-        apiKey: this.configService.get<string>('PINECONE_API_KEY')!,
+      const response = await octokit.repos.getContent({
+        owner,
+        repo,
+        path,
       });
 
-      const index = pinecone.Index(
-        this.configService.get<string>('PINECONE_INDEX_NAME')!,
+      const contents = Array.isArray(response.data)
+        ? response.data
+        : [response.data];
+
+      for (const item of contents) {
+        if (item.type === 'file') {
+          files.push(item);
+        } else if (item.type === 'dir' && !excludedDirs.has(item.name)) {
+          // 재귀적으로 디렉토리 탐색
+          const subFiles = await this.getRepositoryFiles(
+            octokit,
+            owner,
+            repo,
+            item.path,
+          );
+          files.push(...subFiles);
+        }
+      }
+    } catch (error) {
+      this.logger.warn(`디렉토리 읽기 실패 ${owner}/${repo}/${path}:`, error);
+    }
+
+    return files;
+  }
+
+  public async getRecentlyChangedFiles(
+    octokit: Octokit,
+    owner: string,
+    repo: string,
+  ) {
+    const changedFiles = [];
+    const thirtyMinutesAgo = new Date(
+      Date.now() - 30 * 60 * 1000 * 24,
+    ).toISOString();
+
+    try {
+      // 최근 30분 이후의 커밋들 가져오기
+      const commits = await octokit.repos.listCommits({
+        owner,
+        repo,
+        since: thirtyMinutesAgo,
+        per_page: 100,
+      });
+
+      this.logger.log(
+        `${owner}/${repo}: ${commits.data.length}개의 최근 커밋 발견`,
       );
 
-      await index.namespace('github-docs').deleteMany({
-        filter: { id: { $eq: id } },
-      });
+      // 각 커밋에서 변경된 파일들 추출
+      for (const commit of commits.data) {
+        try {
+          const commitDetail = await octokit.repos.getCommit({
+            owner,
+            repo,
+            ref: commit.sha,
+          });
+
+          // 변경된 파일들을 changedFiles 배열에 추가
+          if (commitDetail.data.files) {
+            for (const file of commitDetail.data.files) {
+              // 중복 제거를 위해 기존에 없는 파일만 추가
+              if (!changedFiles.some((f) => f.filename === file.filename)) {
+                changedFiles.push({
+                  filename: file.filename,
+                  status: file.status, // added, modified, removed, renamed
+                  additions: file.additions,
+                  deletions: file.deletions,
+                  changes: file.changes,
+                  patch: file.patch,
+                });
+              }
+            }
+          }
+        } catch (error) {
+          this.logger.warn(
+            `커밋 상세 정보 가져오기 실패 ${commit.sha}:`,
+            error,
+          );
+        }
+      }
+
+      this.logger.log(
+        `${owner}/${repo}: 총 ${changedFiles.length}개의 변경된 파일`,
+      );
+      return changedFiles;
     } catch (error) {
-      this.logger.warn(`기존 임베딩 삭제 중 오류 (id: ${id}):`, error);
+      this.logger.error(`최근 변경된 파일 조회 실패 ${owner}/${repo}:`, error);
+      return [];
+    }
+  }
+
+  private async getFileContent(
+    octokit: Octokit,
+    owner: string,
+    repo: string,
+    path: string,
+  ) {
+    try {
+      const response = await octokit.repos.getContent({
+        owner,
+        repo,
+        path,
+      });
+
+      const data = response.data as any;
+      if (data.content && data.encoding === 'base64') {
+        return Buffer.from(data.content, 'base64').toString('utf-8');
+      }
+    } catch (error) {
+      this.logger.warn(`파일 내용 읽기 실패 ${owner}/${repo}/${path}:`, error);
+    }
+
+    return null;
+  }
+
+  private isSupportedFile(filePath: string): boolean {
+    const extension = filePath.substring(filePath.lastIndexOf('.'));
+    return supportedExtensions.has(extension);
+  }
+
+  private createChunkId(
+    repoName: string,
+    filePath: string,
+    chunkIndex: number,
+  ): string {
+    return `${repoName}:${filePath}:${chunkIndex}`;
+  }
+
+  private async deleteExistingEmbeddings(
+    pineconeStore: any,
+    repository: string,
+    filePath: string,
+  ) {
+    try {
+      const idsToTry = [];
+      for (let i = 0; i < 1000; i++) {
+        idsToTry.push(this.createChunkId(repository, filePath, i));
+      }
+
+      await pineconeStore.deleteMany(idsToTry);
+
+      this.logger.log(`패턴 기반 삭제 완료: ${repository}/${filePath}`);
+    } catch (error) {
+      this.logger.error(`패턴 기반 삭제 실패:`, error);
     }
   }
 }
