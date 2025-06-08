@@ -22,7 +22,7 @@ artifacts:
     - 'dist/**/*'
     - 'public/**/*'
     - 'views/**/*'
-    - 'src/db/prisma/**/*'
+    - 'prisma/**/*'
     - '.ebextensions/**/*'
     - '.platform/**/*'
     - '.npmrc'
