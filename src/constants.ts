@@ -49,7 +49,6 @@ export const supportedExtensions = new Set([
   '.svelte',
   '.md',
   '.txt',
-  '.json',
   '.yaml',
   '.yml',
   '.xml',

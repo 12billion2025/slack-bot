@@ -70,10 +70,11 @@ export class GithubEmbeddingService {
           );
 
           for (const file of changedFiles) {
-            const filename = file.filename || file.name;
+            const filename = file.filename || file.path;
             try {
               // 지원하는 파일 확장자인지 확인
               if (!this.isSupportedFile(filename)) {
+                console.log('not supported file', filename);
                 continue;
               }
 
@@ -95,8 +96,10 @@ export class GithubEmbeddingService {
                 repo.name,
                 filename,
               );
-              if (!content) continue;
-              console.log(content);
+              if (!content) {
+                console.log('no content', filename);
+                continue;
+              }
 
               // 기존 임베딩 삭제 (파일이 수정된 경우)
               await this.deleteExistingEmbeddings(
