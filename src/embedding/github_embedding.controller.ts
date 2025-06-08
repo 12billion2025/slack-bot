@@ -43,6 +43,7 @@ export class GithubEmbeddingController {
   async initEmbedding(@Body() body: { tenantId: string }) {
     const tenant = await this.prisma.tenants.findFirstOrThrow({
       where: { tenantId: body.tenantId },
+      orderBy: { updatedAt: 'desc' },
     });
 
     try {

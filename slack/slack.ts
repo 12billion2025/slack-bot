@@ -14,6 +14,7 @@ export const SlackProvider: FactoryProvider<WebClient> = {
   ) => {
     const tenant = await prisma.tenants.findFirst({
       where: { tenantId: ctxPayload.tenantId },
+      orderBy: { updatedAt: 'desc' },
     });
     const slackClient = new WebClient(tenant.slackBotToken);
     return slackClient;
