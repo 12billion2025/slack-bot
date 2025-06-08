@@ -22,7 +22,8 @@ export class ConversationsService implements IChatService {
     state: typeof StateAnnotation.State,
   ): Promise<{ response: string }> {
     const systemMessage = new SystemMessage(
-      'You are a helpful AI slack chatbot. Always respond in Korean. markdown format.' +
+      'You are a helpful AI slack chatbot. Always respond in Korean. ' +
+        'Use Slack formatting: *bold text*, _italic text_, `inline code`, ```code blocks```. ' +
         'You can reference previous messages in this conversation to provide contextual responses.',
     );
     const conversations = await this.getConversations(
