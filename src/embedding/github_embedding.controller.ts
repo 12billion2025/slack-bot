@@ -1,8 +1,9 @@
-import { Body, Controller, Logger, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Logger, Post, Res, UseGuards } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from 'prisma/prisma.service';
 import { GithubEmbeddingService } from './github_embedding.service';
 import { ApiKeyGuard } from '../api-key.guard';
+import { Response } from 'express';
 
 @Controller('github-embedding')
 export class GithubEmbeddingController {
@@ -40,7 +41,12 @@ export class GithubEmbeddingController {
 
   @Post('init')
   @UseGuards(ApiKeyGuard)
-  async initEmbedding(@Body() body: { tenantId: string }) {
+  async initEmbedding(
+    @Body() body: { tenantId: string },
+    @Res() res: Response,
+  ) {
+    res.status(200).json({ message: 'GitHub 임베딩 초기화 시작' });
+
     const tenant = await this.prisma.tenants.findFirstOrThrow({
       where: { tenantId: body.tenantId },
       orderBy: { updatedAt: 'desc' },

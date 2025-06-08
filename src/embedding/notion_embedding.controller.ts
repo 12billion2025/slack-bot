@@ -1,8 +1,9 @@
-import { Body, Controller, Logger, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Logger, Post, Res, UseGuards } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from 'prisma/prisma.service';
 import { NotionEmbeddingService } from './notion_embedding.service';
 import { ApiKeyGuard } from '../api-key.guard';
+import { Response } from 'express';
 
 @Controller('notion-embedding')
 export class NotionEmbeddingController {
@@ -39,7 +40,12 @@ export class NotionEmbeddingController {
 
   @Post('init')
   @UseGuards(ApiKeyGuard)
-  async initEmbedding(@Body() body: { tenantId: string }) {
+  async initEmbedding(
+    @Body() body: { tenantId: string },
+    @Res() res: Response,
+  ) {
+    res.status(200).json({ message: 'Notion 임베딩 초기화 시작' });
+
     const tenant = await this.prisma.tenants.findFirstOrThrow({
       where: { tenantId: body.tenantId },
       orderBy: { updatedAt: 'desc' },
@@ -57,5 +63,3 @@ export class NotionEmbeddingController {
     this.logger.log('Notion 임베딩 초기화 완료');
   }
 }
-
-//
