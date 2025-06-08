@@ -12,9 +12,7 @@ export class NotionEmbeddingController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notionEmbeddingService: NotionEmbeddingService,
-  ) {
-    this.updateEmbedding();
-  }
+  ) {}
 
   @Cron(CronExpression.EVERY_HOUR)
   async updateEmbedding() {
