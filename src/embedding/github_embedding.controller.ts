@@ -1,16 +1,14 @@
 import { Body, Controller, Logger, Post, UseGuards } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from 'prisma/prisma.service';
 import { GithubEmbeddingService } from './github_embedding.service';
-import { ApiKeyGuard } from '../guards/api-key.guard';
+import { ApiKeyGuard } from '../api-key.guard';
 
 @Controller('github-embedding')
 export class GithubEmbeddingController {
   private readonly logger = new Logger(GithubEmbeddingController.name);
 
   constructor(
-    private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
     private readonly githubEmbeddingService: GithubEmbeddingService,
   ) {}
