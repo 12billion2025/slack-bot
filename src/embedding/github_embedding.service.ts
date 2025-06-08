@@ -96,10 +96,6 @@ export class GithubEmbeddingService {
                 repo.name,
                 filename,
               );
-              if (!content) {
-                console.log('no content', filename);
-                continue;
-              }
 
               // 기존 임베딩 삭제 (파일이 수정된 경우)
               await this.deleteExistingEmbeddings(
@@ -107,6 +103,11 @@ export class GithubEmbeddingService {
                 repo.full_name,
                 filename,
               );
+
+              if (!content) {
+                console.log('no content', filename);
+                continue;
+              }
 
               // 텍스트를 청크로 분할
               const chunks = await this.textSplitter.splitText(content);
