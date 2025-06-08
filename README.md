@@ -167,7 +167,7 @@ curl -X POST http://localhost:3000/github-embedding/init \
   -H "x-api-key: your_api_key" \
   -d '{"tenantId": "your_tenant_id"}'
 
-# 자동 업데이트는 30분마다 실행됩니다
+# 자동 업데이트는 1시간마다 실행됩니다
 ```
 
 ### Notion 임베딩 업데이트
@@ -178,7 +178,7 @@ curl -X POST http://localhost:3000/notion-embedding/init \
   -H "x-api-key: your_api_key" \
   -d '{"tenantId": "your_tenant_id"}'
 
-# 자동 업데이트는 4시간마다 실행됩니다
+# 자동 업데이트는 1시간마다 실행됩니다
 ```
 
 ## 🔧 API 엔드포인트
