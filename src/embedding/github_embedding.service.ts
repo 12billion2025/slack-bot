@@ -171,36 +171,6 @@ export class GithubEmbeddingService {
     }
   }
 
-  public async getAllRepositories(octokit: Octokit) {
-    const repositories = [];
-    let page = 1;
-    const perPage = 10;
-
-    try {
-      // GitHub App의 경우 installation repositories 사용
-      while (true) {
-        const response = await octokit.apps.listReposAccessibleToInstallation({
-          page,
-          per_page: perPage,
-        });
-
-        repositories.push(...response.data.repositories);
-
-        if (response.data.repositories.length < perPage) {
-          break;
-        }
-        page++;
-      }
-    } catch (error) {
-      this.logger.warn(
-        'Installation repositories 접근 실패, 대체 방법 시도:',
-        error,
-      );
-    }
-
-    return repositories;
-  }
-
   public async getRepositoryFiles(
     octokit: Octokit,
     owner: string,
@@ -305,6 +275,36 @@ export class GithubEmbeddingService {
       this.logger.error(`최근 변경된 파일 조회 실패 ${owner}/${repo}:`, error);
       return [];
     }
+  }
+
+  private async getAllRepositories(octokit: Octokit) {
+    const repositories = [];
+    let page = 1;
+    const perPage = 10;
+
+    try {
+      // GitHub App의 경우 installation repositories 사용
+      while (true) {
+        const response = await octokit.apps.listReposAccessibleToInstallation({
+          page,
+          per_page: perPage,
+        });
+
+        repositories.push(...response.data.repositories);
+
+        if (response.data.repositories.length < perPage) {
+          break;
+        }
+        page++;
+      }
+    } catch (error) {
+      this.logger.warn(
+        'Installation repositories 접근 실패, 대체 방법 시도:',
+        error,
+      );
+    }
+
+    return repositories;
   }
 
   private async getFileContent(
